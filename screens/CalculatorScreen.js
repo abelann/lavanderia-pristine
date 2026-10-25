@@ -1,5 +1,5 @@
 // screens/CalculatorScreen.js
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   ScrollView,
@@ -10,19 +10,33 @@ import {
   StyleSheet,
 } from 'react-native';
 import ServiceButton from '../components/ServiceButton';
+import { INITIAL_SERVICES, loadServiceCatalog } from '../services/serviceCatalog';
+import { useAuth } from '../contexts/AuthContext';
+import { addItemToCart } from '../services/localCommerce';
 
-const servicios = {
-  normal: { nombre: 'Lavado normal', precio: 5 },
-  secado: { nombre: 'Lavado + secado', precio: 7 },
-  planchado: { nombre: 'Lavado + planchado', precio: 8 },
-};
-
-export default function CalculatorScreen() {
+export default function CalculatorScreen({ navigation }) {
+  const { user } = useAuth();
+  const [servicios, setServicios] = useState(INITIAL_SERVICES);
   const [cantidad, setCantidad] = useState('');
   const [servicio, setServicio] = useState('');
   const [precio, setPrecio] = useState(0);
   const [total, setTotal] = useState(null);
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+
+  useEffect(() => {
+    let isActive = true;
+
+    loadServiceCatalog().then((catalog) => {
+      if (isActive) {
+        setServicios(catalog);
+      }
+    });
+
+    return () => {
+      isActive = false;
+    };
+  }, []);
 
   const limpiarFormulario = () => {
     setCantidad('');
@@ -33,6 +47,7 @@ export default function CalculatorScreen() {
   };
 
   const calcularTotal = () => {
+    setNotice('');
     if (cantidad.trim() === '') {
       setError('Por favor, ingresa la cantidad de prendas.');
       setTotal(null);
@@ -53,18 +68,44 @@ export default function CalculatorScreen() {
       return;
     }
 
-    if (!servicio) {
+    const servicioSeleccionado = servicios.find((item) => item.id === servicio);
+    if (!servicioSeleccionado) {
       setError('Selecciona un tipo de servicio.');
       setTotal(null);
       return;
     }
 
-    const precioServicio = servicios[servicio].precio;
+    const precioServicio = Number(servicioSeleccionado.precio);
     const totalCalculado = cantidadNumerica * precioServicio;
 
     setPrecio(precioServicio);
     setTotal(totalCalculado.toFixed(2));
     setError('');
+  };
+
+  const agregarAlCarrito = async () => {
+    setError('');
+    setNotice('');
+
+    const cantidadNumerica = Number(cantidad);
+    if (!Number.isInteger(cantidadNumerica) || cantidadNumerica <= 0) {
+      setError('Para crear un pedido, ingresa una cantidad entera mayor que 0.');
+      return;
+    }
+
+    const servicioSeleccionado = servicios.find((item) => item.id === servicio);
+    if (!servicioSeleccionado) {
+      setError('Selecciona un tipo de servicio.');
+      return;
+    }
+
+    try {
+      await addItemToCart(user.id, servicioSeleccionado, cantidadNumerica);
+      setNotice('Servicio agregado al carrito.');
+      navigation.navigate('Carrito');
+    } catch (addError) {
+      setError(addError.message || 'No se pudo actualizar el carrito.');
+    }
   };
 
   return (
@@ -85,43 +126,41 @@ export default function CalculatorScreen() {
 
       <Text style={styles.label}>Selecciona un servicio:</Text>
 
-      <ServiceButton
-        nombre="Lavado normal"
-        precio={servicios.normal.precio}
-        seleccionado={servicio === 'normal'}
-        onPress={() => setServicio('normal')}
-      />
-
-      <ServiceButton
-        nombre="Lavado + secado"
-        precio={servicios.secado.precio}
-        seleccionado={servicio === 'secado'}
-        onPress={() => setServicio('secado')}
-      />
-
-      <ServiceButton
-        nombre="Lavado + planchado"
-        precio={servicios.planchado.precio}
-        seleccionado={servicio === 'planchado'}
-        onPress={() => setServicio('planchado')}
-      />
+      {servicios.filter((item) => item.activo).map((item) => (
+        <ServiceButton
+          key={item.id}
+          nombre={item.nombre}
+          precio={Number(item.precio)}
+          seleccionado={servicio === item.id}
+          onPress={() => setServicio(item.id)}
+        />
+      ))}
 
       <TouchableOpacity style={styles.primaryButton} onPress={calcularTotal}>
         <Text style={styles.primaryButtonText}>Calcular costo</Text>
       </TouchableOpacity>
 
       {error ? <Text style={styles.errorText}>{error}</Text> : null}
+      {notice ? <Text style={styles.noticeText}>{notice}</Text> : null}
 
       {total !== null ? (
         <View style={styles.resultBox}>
           <Text style={styles.resultTitle}>RESUMEN DEL LAVADO</Text>
           <Text style={styles.resultText}>Prendas: {cantidad}</Text>
-          <Text style={styles.resultText}>Servicio: {servicios[servicio].nombre}</Text>
+          <Text style={styles.resultText}>
+            Servicio: {servicios.find((item) => item.id === servicio)?.nombre}
+          </Text>
           <Text style={styles.resultText}>Precio por prenda: S/ {precio.toFixed(2)}</Text>
 
           <Text style={styles.totalLabel}>TOTAL ESTIMADO</Text>
           <Text style={styles.totalValue}>S/ {total}</Text>
         </View>
+      ) : null}
+
+      {total !== null ? (
+        <TouchableOpacity style={styles.primaryButton} onPress={agregarAlCarrito}>
+          <Text style={styles.primaryButtonText}>Agregar al carrito</Text>
+        </TouchableOpacity>
       ) : null}
 
       <Pressable
@@ -183,6 +222,13 @@ const styles = StyleSheet.create({
   errorText: {
     marginTop: 14,
     color: '#c0392b',
+    fontSize: 14,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  noticeText: {
+    marginTop: 14,
+    color: '#176e57',
     fontSize: 14,
     fontWeight: '600',
     textAlign: 'center',

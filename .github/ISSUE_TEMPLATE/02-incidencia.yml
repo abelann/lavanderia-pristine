@@ -1,0 +1,36 @@
+name: Incidencia
+description: Reportar un defecto reproducible
+title: "[Incidencia]: "
+labels: ["incidencia", "triage"]
+body:
+  - type: textarea
+    id: problema
+    attributes:
+      label: Problema observado
+      description: Que ocurre y que esperabas que ocurriera?
+    validations:
+      required: true
+  - type: textarea
+    id: reproducir
+    attributes:
+      label: Pasos para reproducir
+      placeholder: |
+        1. Abrir...
+        2. Seleccionar...
+        3. Observar...
+    validations:
+      required: true
+  - type: input
+    id: entorno
+    attributes:
+      label: Entorno
+      description: Dispositivo, sistema operativo y modo Expo (Android, iOS o web).
+    validations:
+      required: true
+  - type: textarea
+    id: evidencia
+    attributes:
+      label: Evidencia
+      description: Adjunta captura o mensaje de error, sin datos personales ni secretos.
+    validations:
+      required: false

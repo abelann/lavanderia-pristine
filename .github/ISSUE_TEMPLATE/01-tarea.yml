@@ -1,0 +1,39 @@
+name: Tarea
+description: Registrar trabajo planificado o de mantenimiento
+title: "[Tarea]: "
+labels: ["tarea"]
+body:
+  - type: textarea
+    id: objetivo
+    attributes:
+      label: Objetivo
+      description: Que resultado concreto se espera?
+      placeholder: Describe el resultado observable.
+    validations:
+      required: true
+  - type: textarea
+    id: alcance
+    attributes:
+      label: Alcance y exclusiones
+      description: Indica que incluye y que queda fuera.
+    validations:
+      required: true
+  - type: textarea
+    id: criterios
+    attributes:
+      label: Criterios de aceptacion
+      description: Lista como se comprobara que esta terminada.
+      value: |
+        - [ ]
+    validations:
+      required: true
+  - type: dropdown
+    id: prioridad
+    attributes:
+      label: Prioridad
+      options:
+        - Media
+        - Alta
+        - Baja
+    validations:
+      required: true
