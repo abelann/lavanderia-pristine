@@ -3,8 +3,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const CATALOG_CACHE_KEY = 'lavanderia-pristine:service-catalog:v2';
 
 export const INITIAL_SERVICES = [
-  { id: 'normal', nombre: 'Lavado + secado ', precio: 8, activo: true },
-  { id: 'planchado', nombre: 'Lavado + secado + planchado', precio: 12, activo: true },
+  { id: 'normal', nombre: 'Lavado + secado ', precio: 3, activo: true },
+  { id: 'planchado', nombre: 'Lavado + secado + planchado', precio: 4, activo: true },
 ];
 
 function isValidCatalog(value) {
