@@ -1,7 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useAuth } from '../contexts/AuthContext';
-import { createLocalOrder, loadCart, updateCartQuantity } from '../services/localCommerce';
+import { createOrderId, createCustomerOrder } from '../services/firestoreOrders';
+import {
+  clearCart,
+  clearPendingOrderId,
+  getOrCreatePendingOrderId,
+  loadCart,
+  updateCartQuantity,
+} from '../services/localCommerce';
 
 export default function CartScreen({ navigation }) {
   const { user } = useAuth();
@@ -26,7 +33,14 @@ export default function CartScreen({ navigation }) {
     setError('');
     setIsSubmitting(true);
     try {
-      const order = await createLocalOrder(user.id);
+      const orderId = await getOrCreatePendingOrderId(user.id, createOrderId);
+      const order = await createCustomerOrder({
+        orderId,
+        user,
+        cart: items,
+      });
+      await clearCart(user.id);
+      await clearPendingOrderId(user.id);
       setItems([]);
       navigation.navigate('PagoDemo', { orderId: order.id });
     } catch (submitError) {
@@ -67,10 +81,10 @@ export default function CartScreen({ navigation }) {
             <Text style={styles.totalLabel}>Total estimado</Text>
             <Text style={styles.total}>S/ {total.toFixed(2)}</Text>
           </View>
-          <Text style={styles.localNote}>Pedido de demostración guardado en este dispositivo.</Text>
+          <Text style={styles.localNote}>Confirma para enviar tu pedido.</Text>
           {error ? <Text style={styles.error}>{error}</Text> : null}
           <Pressable style={styles.primaryButton} onPress={confirmOrder} disabled={isSubmitting}>
-            <Text style={styles.primaryText}>{isSubmitting ? 'Guardando...' : 'Crear pedido'}</Text>
+            <Text style={styles.primaryText}>{isSubmitting ? 'Enviando pedido...' : 'Confirmar pedido'}</Text>
           </Pressable>
         </>
       ) : null}

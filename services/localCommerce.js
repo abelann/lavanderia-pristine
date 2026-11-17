@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const cartKey = (userId) => `lavanderia-pristine:cart:${userId}:v1`;
-const ordersKey = (userId) => `lavanderia-pristine:orders:${userId}:v1`;
+const pendingOrderKey = (userId) => `lavanderia-pristine:pending-order:${userId}:v1`;
 
 async function readArray(key) {
   try {
@@ -19,6 +19,22 @@ async function writeArray(key, value) {
 
 export async function loadCart(userId) {
   return readArray(cartKey(userId));
+}
+
+export async function clearCart(userId) {
+  await writeArray(cartKey(userId), []);
+}
+
+export async function getOrCreatePendingOrderId(userId, createId) {
+  const existingId = await AsyncStorage.getItem(pendingOrderKey(userId));
+  if (existingId) return existingId;
+  const nextId = createId();
+  await AsyncStorage.setItem(pendingOrderKey(userId), nextId);
+  return nextId;
+}
+
+export async function clearPendingOrderId(userId) {
+  await AsyncStorage.removeItem(pendingOrderKey(userId));
 }
 
 export async function addItemToCart(userId, service, quantity) {
@@ -41,6 +57,7 @@ export async function addItemToCart(userId, service, quantity) {
     }];
 
   await writeArray(cartKey(userId), nextCart);
+  await clearPendingOrderId(userId);
   return nextCart;
 }
 
@@ -53,33 +70,6 @@ export async function updateCartQuantity(userId, serviceId, quantity) {
       ? { ...item, cantidad: Math.floor(parsedQuantity) }
       : item);
   await writeArray(cartKey(userId), nextCart);
+  await clearPendingOrderId(userId);
   return nextCart;
-}
-
-export async function createLocalOrder(userId) {
-  const cart = await loadCart(userId);
-  if (!cart.length) {
-    throw new Error('Agrega al menos un servicio al carrito.');
-  }
-
-  const items = cart.map((item) => ({ ...item }));
-  const total = items.reduce((sum, item) => sum + item.precio * item.cantidad, 0);
-  const order = {
-    id: `pedido-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-    userId,
-    items,
-    total: Number(total.toFixed(2)),
-    status: 'pendiente',
-    paymentStatus: 'no procesado',
-    createdAt: new Date().toISOString(),
-  };
-
-  const orders = await readArray(ordersKey(userId));
-  await writeArray(ordersKey(userId), [order, ...orders]);
-  await writeArray(cartKey(userId), []);
-  return order;
-}
-
-export async function loadOrders(userId) {
-  return readArray(ordersKey(userId));
 }

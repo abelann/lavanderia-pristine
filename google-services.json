@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "993129571497",
+    "project_id": "pristineapp-9d19c",
+    "storage_bucket": "pristineapp-9d19c.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:993129571497:android:153e94fcbbd3219e70f5b8",
+        "android_client_info": {
+          "package_name": "com.abelrodrigo.lavanderiapristine"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDlUlQOAX3OVxwya1mtinH2BpD_DpmEFpI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

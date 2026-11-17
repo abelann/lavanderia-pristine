@@ -11,12 +11,15 @@ import ProfileScreen from './screens/ProfileScreen';
 import CartScreen from './screens/CartScreen';
 import OrdersScreen from './screens/OrdersScreen';
 import PaymentDemoScreen from './screens/PaymentDemoScreen';
+import AdminDashboardScreen from './screens/AdminDashboardScreen';
+import AdminOrdersScreen from './screens/AdminOrdersScreen';
+import AdminUsersScreen from './screens/AdminUsersScreen';
 import { useEffect, useState } from 'react';
 
 const Stack = createNativeStackNavigator();
 
 function AppNavigation() {
-  const { isLoading, user, signOut } = useAuth();
+  const { isLoading, user, profileError, retryProfile, signOut } = useAuth();
   const [verifiedUserId, setVerifiedUserId] = useState(null);
   const [biometricError, setBiometricError] = useState('');
 
@@ -50,7 +53,22 @@ function AppNavigation() {
     return (
       <View style={styles.loading}>
         <ActivityIndicator size="large" color="#1f9d75" />
-        <Text style={styles.loadingText}>Cargando sesión local...</Text>
+        <Text style={styles.loadingText}>Cargando cuenta...</Text>
+      </View>
+    );
+  }
+
+  if (profileError) {
+    return (
+      <View style={styles.loading}>
+        <Text style={styles.biometricTitle}>No se pudo cargar el perfil</Text>
+        <Text style={styles.loadingText}>{profileError}</Text>
+        <Pressable style={styles.biometricButton} onPress={retryProfile}>
+          <Text style={styles.biometricButtonText}>Reintentar</Text>
+        </Pressable>
+        <Pressable style={styles.biometricButton} onPress={signOut}>
+          <Text style={styles.biometricButtonText}>Cerrar sesión</Text>
+        </Pressable>
       </View>
     );
   }
@@ -73,38 +91,23 @@ function AppNavigation() {
   return (
     <NavigationContainer>
       {user ? (
-        <Stack.Navigator initialRouteName="Inicio">
-          <Stack.Screen
-            name="Inicio"
-            component={HomeScreen}
-            options={{ headerShown: false }}
-          />
-          <Stack.Screen
-            name="CalcularLavado"
-            component={CalculatorScreen}
-            options={{ title: 'Calcular lavado' }}
-          />
-          <Stack.Screen
-            name="Perfil"
-            component={ProfileScreen}
-            options={{ title: 'Mi perfil' }}
-          />
-          <Stack.Screen
-            name="Carrito"
-            component={CartScreen}
-            options={{ title: 'Carrito' }}
-          />
-          <Stack.Screen
-            name="Pedidos"
-            component={OrdersScreen}
-            options={{ title: 'Mis pedidos' }}
-          />
-          <Stack.Screen
-            name="PagoDemo"
-            component={PaymentDemoScreen}
-            options={{ title: 'Pago' }}
-          />
-        </Stack.Navigator>
+        user.role === 'admin' ? (
+          <Stack.Navigator initialRouteName="PanelAdmin">
+            <Stack.Screen name="PanelAdmin" component={AdminDashboardScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="GestionPedidosAdmin" component={AdminOrdersScreen} options={{ title: 'Gestionar pedidos' }} />
+            <Stack.Screen name="GestionClientesAdmin" component={AdminUsersScreen} options={{ title: 'Gestionar clientes' }} />
+            <Stack.Screen name="Perfil" component={ProfileScreen} options={{ title: 'Mi perfil' }} />
+          </Stack.Navigator>
+        ) : (
+          <Stack.Navigator initialRouteName="Inicio">
+            <Stack.Screen name="Inicio" component={HomeScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="CalcularLavado" component={CalculatorScreen} options={{ title: 'Calcular lavado' }} />
+            <Stack.Screen name="Perfil" component={ProfileScreen} options={{ title: 'Mi perfil' }} />
+            <Stack.Screen name="Carrito" component={CartScreen} options={{ title: 'Carrito' }} />
+            <Stack.Screen name="Pedidos" component={OrdersScreen} options={{ title: 'Mis pedidos' }} />
+            <Stack.Screen name="PagoDemo" component={PaymentDemoScreen} options={{ title: 'Pedido registrado' }} />
+          </Stack.Navigator>
+        )
       ) : (
         <Stack.Navigator>
           <Stack.Screen

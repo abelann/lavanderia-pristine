@@ -1,67 +1,112 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import {
-  registerLocalUser,
-  resetLocalPassword,
-  restoreLocalSession,
-  signInLocalUser,
-  signOutLocalUser,
-  updateLocalProfile,
-} from '../services/localAuth';
+  loadAuthenticatedUser,
+  registerFirebaseUser,
+  reloadFirebaseProfile,
+  sendFirebasePasswordReset,
+  signInFirebaseUser,
+  signOutFirebaseUser,
+  subscribeToAuthChanges,
+  updateFirebaseProfile,
+} from '../services/firebaseAuth';
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-  const [session, setSession] = useState(null);
+  const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [profileError, setProfileError] = useState('');
+  const authChangeId = useRef(0);
 
   useEffect(() => {
     let isActive = true;
 
-    restoreLocalSession().then((storedSession) => {
+    const unsubscribe = subscribeToAuthChanges(async (authUser) => {
+      const currentChangeId = ++authChangeId.current;
+      setProfileError('');
+
+      if (!authUser) {
+        setUser(null);
+        setIsLoading(false);
+        return;
+      }
+
+      setIsLoading(true);
+      try {
+        const authenticatedUser = await loadAuthenticatedUser(authUser);
+        if (isActive && currentChangeId === authChangeId.current) setUser(authenticatedUser);
+      } catch (error) {
+        if (isActive && currentChangeId === authChangeId.current) {
+          setUser(null);
+          setProfileError(error.message || 'No se pudo cargar tu perfil de Firebase.');
+        }
+      } finally {
+        if (isActive && currentChangeId === authChangeId.current) setIsLoading(false);
+      }
+    }, (error) => {
       if (isActive) {
-        setSession(storedSession);
+        setProfileError(error.message || 'No se pudo comprobar la sesión de Firebase.');
         setIsLoading(false);
       }
     });
 
     return () => {
       isActive = false;
+      unsubscribe();
     };
   }, []);
 
   const signIn = async (credentials) => {
-    const nextSession = await signInLocalUser(credentials);
-    setSession(nextSession);
+    const authenticatedUser = await signInFirebaseUser(credentials);
+    authChangeId.current += 1;
+    setUser(authenticatedUser);
+    setProfileError('');
   };
 
   const register = async (details) => {
-    const nextSession = await registerLocalUser(details);
-    setSession(nextSession);
+    const authenticatedUser = await registerFirebaseUser(details);
+    authChangeId.current += 1;
+    setUser(authenticatedUser);
+    setProfileError('');
   };
 
-  const resetPassword = async (details) => resetLocalPassword(details);
+  const resetPassword = async (email) => sendFirebasePasswordReset(email);
 
   const updateProfile = async (profile) => {
-    const nextSession = await updateLocalProfile(session.user.id, profile);
-    setSession(nextSession);
+    const updatedUser = await updateFirebaseProfile(user.id, profile);
+    setUser(updatedUser);
   };
 
   const signOut = async () => {
-    await signOutLocalUser();
-    setSession(null);
+    await signOutFirebaseUser();
+    setUser(null);
+    setProfileError('');
+  };
+
+  const retryProfile = async () => {
+    setIsLoading(true);
+    setProfileError('');
+    try {
+      setUser(await reloadFirebaseProfile());
+    } catch (error) {
+      setProfileError(error.message || 'No se pudo cargar tu perfil de Firebase.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
     <AuthContext.Provider
       value={{
         isLoading,
-        session,
-        user: session?.user || null,
+        user,
+        profileError,
         signIn,
         register,
         resetPassword,
         updateProfile,
         signOut,
+        retryProfile,
       }}
     >
       {children}

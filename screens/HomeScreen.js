@@ -5,14 +5,16 @@ import { useAuth } from '../contexts/AuthContext';
 
 export default function HomeScreen({ navigation }) {
   const { user, signOut } = useAuth();
+  const displayName = [user.name, user.surname].filter(Boolean).join(' ') || user.email;
+  const isAdministrator = user.role === 'admin';
 
   return (
     <View style={styles.container}>
       <View style={styles.accountBar}>
         <View style={styles.accountText}>
-          <Text style={styles.greeting}>Hola, {user.nombre || user.email}</Text>
+          <Text style={styles.greeting}>Hola, {displayName}</Text>
           <Text style={styles.role}>
-            {user.role === 'administrador' ? 'Acceso administrador demo' : 'Cliente'}
+            {isAdministrator ? 'Administración Pristine' : 'Cliente'}
           </Text>
         </View>
         <Pressable onPress={signOut} accessibilityRole="button">

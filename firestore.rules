@@ -1,0 +1,117 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    match /users/{uid} {
+      allow get: if signedIn() && (request.auth.uid == uid || isAdmin());
+      allow list: if isAdmin();
+      allow create: if signedIn()
+        && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['name', 'surname', 'email', 'role'])
+        && request.resource.data.keys().hasAll(['name', 'surname', 'email', 'role'])
+        && request.resource.data.name is string
+        && request.resource.data.surname is string
+        && request.resource.data.email == request.auth.token.email
+        && request.resource.data.role == 'cliente';
+      allow update: if signedIn()
+        && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['name', 'surname', 'email', 'role'])
+        && request.resource.data.keys().hasAll(['name', 'surname', 'email', 'role'])
+        && request.resource.data.name is string
+        && request.resource.data.surname is string
+        && request.resource.data.email == request.auth.token.email
+        && request.resource.data.role == resource.data.role
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'surname']);
+      allow delete: if isAdmin() && resource.data.role == 'cliente';
+    }
+
+    match /orders/{orderId} {
+      function validOrderItem(item) {
+        return item is map
+          && item.keys().hasOnly(['serviceId', 'name', 'unitPrice', 'quantity'])
+          && item.keys().hasAll(['serviceId', 'name', 'unitPrice', 'quantity'])
+          && item.serviceId is string
+          && item.name is string
+          && item.unitPrice is number
+          && item.unitPrice >= 0
+          && item.quantity is int
+          && item.quantity > 0
+          && item.quantity <= 1000;
+      }
+
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly([
+          'userId', 'customer', 'items', 'total', 'currency', 'status',
+          'paymentStatus', 'location', 'createdAt', 'updatedAt'
+        ])
+        && request.resource.data.keys().hasAll([
+          'userId', 'customer', 'items', 'total', 'currency', 'status',
+          'paymentStatus', 'location', 'createdAt', 'updatedAt'
+        ])
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.customer is map
+        && request.resource.data.customer.keys().hasOnly(['name', 'surname', 'email'])
+        && request.resource.data.customer.name is string
+        && request.resource.data.customer.surname is string
+        && request.resource.data.customer.email == request.auth.token.email
+        && request.resource.data.items is list
+        && request.resource.data.items.size() > 0
+        && request.resource.data.items.size() <= 2
+        && validOrderItem(request.resource.data.items[0])
+        && (request.resource.data.items.size() == 1
+          || validOrderItem(request.resource.data.items[1]))
+        && request.resource.data.total is number
+        && request.resource.data.total >= 0
+        && request.resource.data.currency == 'PEN'
+        && request.resource.data.status == 'pending'
+        && request.resource.data.paymentStatus == 'unprocessed'
+        && request.resource.data.location == null
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.updatedAt == request.time;
+
+      allow get, list: if signedIn()
+        && (isAdmin() || resource.data.userId == request.auth.uid);
+
+      allow update: if signedIn()
+        && request.resource.data.updatedAt == request.time
+        && (
+          (
+            resource.data.userId == request.auth.uid
+            && request.resource.data.status == 'archived'
+            && request.resource.data.archivedAt == request.time
+            && request.resource.data.diff(resource.data).affectedKeys()
+              .hasOnly(['status', 'archivedAt', 'updatedAt'])
+            && request.resource.data.status == 'archived'
+            && request.resource.data.archivedAt == request.time
+          )
+          || (
+            isAdmin()
+            && (resource.data.status != 'archived' || request.resource.data.status == 'archived')
+            && request.resource.data.status in [
+              'pending', 'processing', 'completed', 'cancelled', 'archived'
+            ]
+            && request.resource.data.diff(resource.data).affectedKeys()
+              .hasOnly(['status', 'archivedAt', 'updatedAt'])
+            && (
+              (request.resource.data.status == 'archived'
+                && request.resource.data.archivedAt == request.time)
+              || (request.resource.data.status != 'archived'
+                && !request.resource.data.keys().hasAny(['archivedAt']))
+            )
+          )
+        );
+
+      allow delete: if signedIn()
+        && (isAdmin() || resource.data.userId == request.auth.uid);
+    }
+  }
+}

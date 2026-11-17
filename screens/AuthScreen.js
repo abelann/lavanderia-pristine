@@ -18,13 +18,27 @@ const MODE_RESET = 'reset';
 export default function AuthScreen() {
   const { signIn, register, resetPassword } = useAuth();
   const [mode, setMode] = useState(MODE_LOGIN);
-  const [nombre, setNombre] = useState('');
+  const [name, setName] = useState('');
+  const [surname, setSurname] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [newPassword, setNewPassword] = useState('');
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const messageForError = (submitError) => {
+    const messages = {
+      'auth/email-already-in-use': 'Ya existe una cuenta con ese correo.',
+      'auth/invalid-email': 'Ingresa un correo válido.',
+      'auth/weak-password': 'La contraseña debe tener al menos 6 caracteres.',
+      'auth/invalid-credential': 'Correo o contraseña incorrectos.',
+      'auth/user-not-found': 'Correo o contraseña incorrectos.',
+      'auth/wrong-password': 'Correo o contraseña incorrectos.',
+      'auth/network-request-failed': 'No se pudo conectar. Revisa tu conexión e inténtalo de nuevo.',
+      'auth/too-many-requests': 'Hubo demasiados intentos. Espera un momento y vuelve a intentar.',
+    };
+    return messages[submitError.code] || submitError.message || 'No se pudo completar la operación.';
+  };
 
   const submit = async () => {
     setError('');
@@ -40,13 +54,17 @@ export default function AuthScreen() {
       return;
     }
 
-    if (mode === MODE_REGISTER && !nombre.trim()) {
+    if (mode === MODE_REGISTER && !name.trim()) {
       setError('Ingresa tu nombre.');
       return;
     }
 
-    const activePassword = mode === MODE_RESET ? newPassword : password;
-    if (activePassword.length < 6) {
+    if (mode === MODE_REGISTER && !surname.trim()) {
+      setError('Ingresa tu apellido.');
+      return;
+    }
+
+    if (mode !== MODE_RESET && password.length < 6) {
       setError('La contraseña debe tener al menos 6 caracteres.');
       return;
     }
@@ -54,18 +72,21 @@ export default function AuthScreen() {
     setIsSubmitting(true);
     try {
       if (mode === MODE_REGISTER) {
-        await register({ nombre, email, password });
+        await register({ name, surname, email, password });
       } else if (mode === MODE_RESET) {
-        await resetPassword({ email, password: newPassword });
-        setMode(MODE_LOGIN);
-        setPassword('');
-        setNewPassword('');
-        setNotice('Contraseña local actualizada. Ya puedes iniciar sesión.');
+        try {
+          await resetPassword(email);
+        } catch (resetError) {
+          if (!['auth/user-not-found', 'auth/invalid-credential'].includes(resetError.code)) {
+            throw resetError;
+          }
+        }
+        setNotice('Si hay una cuenta asociada a ese correo, recibirás un enlace para restablecer la contraseña.');
       } else {
         await signIn({ email, password });
       }
     } catch (submitError) {
-      setError(submitError.message || 'No se pudo completar la operación.');
+      setError(messageForError(submitError));
     } finally {
       setIsSubmitting(false);
     }
@@ -78,7 +99,7 @@ export default function AuthScreen() {
   };
 
   const title = mode === MODE_REGISTER
-    ? 'Crear cuenta'
+    ? 'Crear cuenta de cliente'
     : mode === MODE_RESET
       ? 'Restablecer contraseña'
       : 'Iniciar sesión';
@@ -92,18 +113,35 @@ export default function AuthScreen() {
         <View style={styles.heading}>
           <Text style={styles.brand}>Lavandería Pristine</Text>
           <Text style={styles.title}>{title}</Text>
-          <Text style={styles.subtitle}>Acceso de demostración local</Text>
+          <Text style={styles.subtitle}>
+            {mode === MODE_RESET
+              ? 'Te enviaremos un enlace a tu correo.'
+              : mode === MODE_REGISTER
+                ? 'Regístrate como cliente.'
+                : 'Ingresa con tu correo y contraseña.'}
+          </Text>
         </View>
 
         <View style={styles.form}>
           {mode === MODE_REGISTER ? (
-            <TextInput
-              style={styles.input}
-              placeholder="Nombre completo"
-              value={nombre}
-              onChangeText={setNombre}
-              autoCapitalize="words"
-            />
+            <>
+              <TextInput
+                style={styles.input}
+                placeholder="Nombre"
+                value={name}
+                onChangeText={setName}
+                autoCapitalize="words"
+                autoComplete="name-given"
+              />
+              <TextInput
+                style={styles.input}
+                placeholder="Apellido"
+                value={surname}
+                onChangeText={setSurname}
+                autoCapitalize="words"
+                autoComplete="name-family"
+              />
+            </>
           ) : null}
 
           <TextInput
@@ -125,16 +163,7 @@ export default function AuthScreen() {
               secureTextEntry
               autoCapitalize="none"
             />
-          ) : (
-            <TextInput
-              style={styles.input}
-              placeholder="Nueva contraseña"
-              value={newPassword}
-              onChangeText={setNewPassword}
-              secureTextEntry
-              autoCapitalize="none"
-            />
-          )}
+          ) : null}
 
           {error ? <Text style={styles.error}>{error}</Text> : null}
           {notice ? <Text style={styles.notice}>{notice}</Text> : null}
@@ -146,7 +175,7 @@ export default function AuthScreen() {
             disabled={isSubmitting}
           >
             <Text style={styles.primaryButtonText}>
-              {isSubmitting ? 'Procesando...' : title}
+              {isSubmitting ? 'Procesando...' : mode === MODE_RESET ? 'Enviar enlace' : title}
             </Text>
           </Pressable>
 
@@ -168,20 +197,6 @@ export default function AuthScreen() {
             )}
           </View>
 
-          {mode === MODE_LOGIN ? (
-            <View style={styles.demoBox}>
-              <Text style={styles.demoText}>admin@pristine.local</Text>
-              <Text style={styles.demoText}>Contraseña: pristine-demo</Text>
-              <Pressable
-                onPress={() => {
-                  setEmail('admin@pristine.local');
-                  setPassword('pristine-demo');
-                }}
-              >
-                <Text style={styles.link}>Usar cuenta de administrador</Text>
-              </Pressable>
-            </View>
-          ) : null}
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -275,23 +290,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginBottom: 10,
     textAlign: 'center',
-  },
-  demoBox: {
-    backgroundColor: '#eaf2f9',
-    borderRadius: 8,
-    marginTop: 12,
-    padding: 14,
-  },
-  demoTitle: {
-    color: '#20495f',
-    fontSize: 14,
-    fontWeight: '700',
-    marginBottom: 6,
-  },
-  demoText: {
-    color: '#365b6d',
-    fontSize: 13,
-    marginBottom: 3,
   },
   disclaimer: {
     alignSelf: 'center',

@@ -15,12 +15,8 @@ import { useAuth } from '../contexts/AuthContext';
 export default function ProfileScreen() {
   const { user, updateProfile } = useAuth();
   const [profile, setProfile] = useState({
-    nombre: user.nombre || '',
-    email: user.email || '',
-    telefono: user.telefono || '',
-    direccion: user.direccion || '',
-    edad: user.edad || '',
-    genero: user.genero || '',
+    name: user.name || '',
+    surname: user.surname || '',
     fotoUri: user.fotoUri || '',
     biometricEnabled: Boolean(user.biometricEnabled),
   });
@@ -70,23 +66,15 @@ export default function ProfileScreen() {
   const save = async () => {
     setError('');
     setNotice('');
-    if (!profile.nombre.trim() || !profile.email.trim()) {
-      setError('Nombre y correo son obligatorios.');
-      return;
-    }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(profile.email.trim())) {
-      setError('Ingresa un correo válido.');
-      return;
-    }
-    if (profile.edad && (!Number.isInteger(Number(profile.edad)) || Number(profile.edad) < 1)) {
-      setError('Ingresa una edad válida.');
+    if (!profile.name.trim() || !profile.surname.trim()) {
+      setError('Nombre y apellido son obligatorios.');
       return;
     }
 
     setIsSaving(true);
     try {
       await updateProfile(profile);
-      setNotice('Perfil guardado en este dispositivo.');
+      setNotice('Perfil actualizado.');
     } catch (saveError) {
       setError(saveError.message || 'No se pudo guardar el perfil.');
     } finally {
@@ -97,14 +85,14 @@ export default function ProfileScreen() {
   return (
     <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
       <Text style={styles.title}>Mi perfil</Text>
-      <Text style={styles.caption}>Datos guardados localmente en este dispositivo.</Text>
+      <Text style={styles.caption}>Tus datos personales y cuenta.</Text>
 
       <View style={styles.photoArea}>
         {profile.fotoUri ? (
           <Image source={{ uri: profile.fotoUri }} style={styles.photo} />
         ) : (
           <View style={styles.photoPlaceholder}>
-            <Text style={styles.photoInitial}>{profile.nombre.charAt(0).toUpperCase() || '?'}</Text>
+            <Text style={styles.photoInitial}>{profile.name.charAt(0).toUpperCase() || '?'}</Text>
           </View>
         )}
         <Pressable style={styles.photoButton} onPress={selectPhoto}>
@@ -112,12 +100,28 @@ export default function ProfileScreen() {
         </Pressable>
       </View>
 
-      <TextInput style={styles.input} placeholder="Nombre completo" value={profile.nombre} onChangeText={(value) => setField('nombre', value)} />
-      <TextInput style={styles.input} placeholder="Correo electrónico" value={profile.email} onChangeText={(value) => setField('email', value)} keyboardType="email-address" autoCapitalize="none" />
-      <TextInput style={styles.input} placeholder="Teléfono" value={profile.telefono} onChangeText={(value) => setField('telefono', value)} keyboardType="phone-pad" />
-      <TextInput style={styles.input} placeholder="Dirección" value={profile.direccion} onChangeText={(value) => setField('direccion', value)} />
-      <TextInput style={styles.input} placeholder="Edad" value={String(profile.edad)} onChangeText={(value) => setField('edad', value)} keyboardType="number-pad" />
-      <TextInput style={styles.input} placeholder="Género" value={profile.genero} onChangeText={(value) => setField('genero', value)} />
+      <TextInput
+        style={styles.input}
+        placeholder="Nombre"
+        value={profile.name}
+        onChangeText={(value) => setField('name', value)}
+        autoCapitalize="words"
+      />
+      <TextInput
+        style={styles.input}
+        placeholder="Apellido"
+        value={profile.surname}
+        onChangeText={(value) => setField('surname', value)}
+        autoCapitalize="words"
+      />
+      <TextInput
+        style={[styles.input, styles.readOnlyInput]}
+        placeholder="Correo electrónico"
+        value={user.email}
+        editable={false}
+        keyboardType="email-address"
+        autoCapitalize="none"
+      />
 
       <Pressable
         style={styles.biometricsRow}
@@ -194,6 +198,9 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     paddingHorizontal: 14,
     paddingVertical: 13,
+  },
+  readOnlyInput: {
+    color: '#607783',
   },
   biometricsRow: {
     alignItems: 'center',

@@ -8,16 +8,28 @@
     "userInterfaceStyle": "light",
     "plugins": [
       [
+        "expo-build-properties",
+        {
+          "ios": {
+            "useFrameworks": "static"
+          }
+        }
+      ],
+      [
         "expo-local-authentication",
         {
           "faceIDPermission": "Permite a Lavandería Pristine usar Face ID para desbloquear la sesión local de demostración."
         }
-      ]
+      ],
+      "expo-status-bar"
     ],
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.abelrodrigo.lavanderiapristine"
     },
     "android": {
+      "package": "com.abelrodrigo.lavanderiapristine",
+      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",
