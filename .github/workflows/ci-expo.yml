@@ -1,0 +1,33 @@
+name: CI - Lavandería Pristine (Expo)
+
+on:
+  push:
+    branches: [ main, v2.0 ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  validate-and-bundle:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout del código
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Verificar compatibilidad de paquetes Expo
+        run: npx expo install --check
+
+      - name: Validar configuración pública de Expo
+        run: npx expo config --type public
+
+      - name: Compilar bundle JS para Android
+        run: npx expo export --platform android
