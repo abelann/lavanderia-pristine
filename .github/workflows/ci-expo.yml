@@ -29,5 +29,8 @@ jobs:
       - name: Validar configuración pública de Expo
         run: npx expo config --type public
 
+      - name: Generar google-services.json desde Secretos de GitHub
+        run: echo "${{ secrets.GOOGLE_SERVICES_JSON }}" > google-services.json
+
       - name: Compilar bundle JS para Android
         run: npx expo export --platform android
